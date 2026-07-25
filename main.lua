@@ -8,9 +8,32 @@ function _config()
     return { name = "Mobile Shmup", game_id = "com.spad4.mobile_shmup", sprite_size = 8, game_height = 320, game_width = 180 }
 end
 
+local function spawn_enemy(x, y)
+    return {
+        x = x,
+        y = y,
+        health = 12,
+        r = 4,
+        sprite = 2,
+        color = gfx.COLOR_RED,
+        flash_until = 0
+    }
+end
+
+local function new_wave()
+    return {
+        spawn_enemy(64, 64),
+        spawn_enemy(80, 64),
+        spawn_enemy(96, 64),
+        spawn_enemy(112, 64),
+        spawn_enemy(128, 64)
+    }
+end
+
 function _init()
     Elapsed = 0
     Player = {
+        health = 10,
         x = usagi.GAME_W / 2 - PLAYER_SIZE / 2,
         y = usagi.GAME_H - 100,
         w = PLAYER_SIZE,
@@ -30,24 +53,37 @@ function _init()
     }
     Weapon = {
         -- bursts of attacks (like a magazine)
-        burst_rate = 1, -- time between bursts
-        next_burst = 0, -- when the next burst can begin
-        burst_size = 2, -- how many shots are fired each burst
+        burst_rate = 0.5, -- time between bursts
+        next_burst = 0,   -- when the next burst can begin
+        burst_size = 1,   -- how many shots are fired each burst
 
-        -- affects individual shots in a round
-        fire_rate = 0.25, -- how quickly each shot in around is fired
+        -- affects individual shots in a burst
+        fire_rate = 0.1, -- how quickly each shot in around is fired
         current_shot = 1, -- how many shots have been fired in the current round
-        next_shot = 0     -- when the next shot can be fired
+        next_shot = 0,    -- when the next shot can be fired
+        shot_size = 2,    -- how many bullets are fired per shot
+        spread = 0.25     -- angle between shots, in radians
     }
     Player_Projectiles = {}
+    Room_Cleared = false
+    Enemies = new_wave()
 end
 
-local function new_player_projectile()
+local function player_shoot()
     local new_projectile = {
-        x = Player.x,
+        x = Player.x + Player.hfw,
         y = Player.y,
-        speed = 128
+        w = 2,
+        h = 2,
+        r = 4,
+        damage = 0,
+        color = gfx.COLOR_YELLOW,
+        vx = 0,
+        vy = -256
     }
+    new_projectile.draw = function()
+        gfx.circ_fill(new_projectile.x, new_projectile.y, new_projectile.w, new_projectile.color)
+    end
 
     table.insert(Player_Projectiles, new_projectile)
 end
@@ -63,13 +99,13 @@ function _update(dt)
     end
 
     if Mouse.is_down then
-        local dx, dy = Mouse.x - Mouse.down_x, Mouse.y - Mouse.down_y
-        Mouse.distance = util.vec_dist({ x = 0, y = 0 }, { x = dx, y = dy })
+        local vx, vy = Mouse.x - Mouse.down_x, Mouse.y - Mouse.down_y
+        Mouse.distance = util.vec_dist({ x = 0, y = 0 }, { x = vx, y = vy })
         if Mouse.distance == 0 then
             Mouse.angle = 0
         else
-            local theta = math.asin(dy / Mouse.distance) or 0
-            Mouse.angle = dx > 0 and theta or (math.pi - theta)
+            local theta = math.asin(vy / Mouse.distance) or 0
+            Mouse.angle = vx > 0 and theta or (math.pi - theta)
         end
         Mouse.distance = math.min(Mouse.distance, MOVEMENT_CONTROL_RADIUS)
     else
@@ -89,40 +125,73 @@ function _update(dt)
     end
 
     -- Shooting
-    -- if not Room_Cleared then
-    if Elapsed > Weapon.next_burst then
-        Weapon.next_burst = Elapsed + Weapon.burst_rate
-        Weapon.current_shot = 1
-    end
+    if not Room_Cleared then
+        if Elapsed > Weapon.next_burst then
+            Weapon.next_burst = Elapsed + Weapon.burst_rate
+            Weapon.current_shot = 1
+        end
 
-    if Weapon.current_shot ~= 0 and Elapsed > Weapon.next_shot then
-        new_player_projectile()
-        Weapon.next_shot = Elapsed + Weapon.fire_rate
-        Weapon.current_shot += 1
-        if Weapon.current_shot > Weapon.burst_size then
-            Weapon.current_shot = 0
+        if Weapon.current_shot ~= 0 and (Weapon.current_shot == 1 or Elapsed > Weapon.next_shot) then
+            player_shoot()
+            Weapon.next_shot = Elapsed + Weapon.fire_rate
+            Weapon.current_shot += 1
+            if Weapon.current_shot > Weapon.burst_size then
+                Weapon.current_shot = 0
+            end
         end
     end
-    -- end
 
     -- Player Projectiles
     for i = #Player_Projectiles, 1, -1 do
         local projectile = Player_Projectiles[i]
-        projectile.y -= projectile.speed * dt
+        projectile.x += projectile.vx * dt
+        projectile.y += projectile.vy * dt
 
         if projectile.y < -16 then
             table.remove(Player_Projectiles, i)
+        end
+
+        -- Hit enemies
+        for e = #Enemies, 1, -1 do
+            local enemy = Enemies[e]
+            if util.circ_overlap(projectile, enemy) then
+                enemy.health -= projectile.damage
+                -- dandelion.damage_number(enemy.x, enemy.y, {amount = projectile.damage})
+                enemy.flash_until = Elapsed + 0.25
+                table.remove(Player_Projectiles, i)
+                if enemy.health < 0 then
+                    table.remove(Enemies, e)
+                end
+                break
+            end
         end
     end
 end
 
 function _draw(dt)
-    gfx.clear(gfx.COLOR_DARK_GRAY)
+    gfx.clear(gfx.COLOR_BLACK)
 
     -- player
     dandelion.DrawGroups("engine_flame")
     gfx.spr_ex(1, Player.x, Player.y, false, false, 0, gfx.COLOR_TRUE_WHITE, 1)
 
+    -- Player projectiles
+    for i = #Player_Projectiles, 1, -1 do
+        local projectile = Player_Projectiles[i]
+        projectile.draw()
+    end
+
+    -- Enemies
+    for _, enemy in pairs(Enemies) do
+        gfx.spr_ex(enemy.sprite, enemy.x-enemy.r, enemy.y-enemy.r, false, false, 0, gfx.COLOR_TRUE_WHITE, 1)
+        if Elapsed < enemy.flash_until then
+            gfx.spr_ex(enemy.sprite, enemy.x-enemy.r, enemy.y-enemy.r, false, false, 0, gfx.COLOR_INDIGO, 4 * (enemy.flash_until - Elapsed))
+        end
+    end
+
+    dandelion.DrawExcept()
+
+    -- NO GAME ENTITIES BEYOND THIS POINT
 
     -- bottom of screen UI
     gfx.rect_fill(0, usagi.GAME_H - 64, usagi.GAME_W, 64, gfx.COLOR_BLACK)
@@ -137,4 +206,8 @@ function _draw(dt)
         line_end.x, line_end.y = line_end.x * Mouse.distance, line_end.y * Mouse.distance
         gfx.line(Mouse.down_x, Mouse.down_y, Mouse.down_x + line_end.x, Mouse.down_y + line_end.y, gfx.COLOR_WHITE)
     end
+
+    -- gfx.rect(0, 1, usagi.GAME_W, usagi.GAME_H - 64, gfx.COLOR_INDIGO)
+    -- THE FUCKIN LINE
+    gfx.line(0, 0, usagi.GAME_W, 0, gfx.COLOR_BLACK)
 end

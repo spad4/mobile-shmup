@@ -3,7 +3,7 @@
         "name": "engine_flame",
         "group": "engine_flame",
         "duration": "self.random_1 * 0.5 + 0.5",
-        "dx": "self.age * (self.random_2 * 16 - 8)",
+        "dx": "self.age * (self.random_2 * 24 - 12)",
         "dy": "self.age * (self.random_3 * 8 + 8)",
         "shapes": [
             {
@@ -36,12 +36,12 @@
         "shapes": [
             {
                 "type": "text",
-                "text": "math.floor(self.random_4 * 9 + 1)",
+                "text": "self.amount or '0'",
                 "align": "center",
                 "scale": "self.age < 0.25 and 1 or (1 - (self.age - 0.25) / (self.duration - 0.25))",
                 "alpha": "self.age < 0.25 and 1 or (1 - (self.age - 0.25) / (self.duration - 0.25))",
-                "color": "gfx.COLOR_RED",
-                "outline": "gfx.COLOR_DARK_PURPLE"
+                "color": "gfx.COLOR_YELLOW",
+                "outline": "gfx.COLOR_BROWN"
             }
         ]
     },
