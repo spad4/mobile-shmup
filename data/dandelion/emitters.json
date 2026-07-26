@@ -1,2 +1,28 @@
 [
+    {
+        "name": "player_projectile_break",
+        "duration": 0,
+        "particles": [
+            {
+                "name": "player_projectile_fragment",
+                "count": 4,
+                "shape": "circle",
+                "radius": 4,
+                "motion": 8
+            }
+        ]
+    },
+    {
+        "name": "enemy_projectile_break",
+        "duration": 0,
+        "particles": [
+            {
+                "name": "enemy_projectile_fragment",
+                "count": 16,
+                "shape": "circle",
+                "radius": 8,
+                "motion": 8
+            }
+        ]
+    }
 ]

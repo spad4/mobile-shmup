@@ -2,9 +2,9 @@
     {
         "name": "engine_flame",
         "group": "engine_flame",
-        "duration": "self.random_1 * 0.5 + 0.5",
-        "dx": "self.age * (self.random_2 * 24 - 12)",
-        "dy": "self.age * (self.random_3 * 8 + 8)",
+        "duration": "self.random_1 * 0.25 + 0.25",
+        "dx": "self.age * (self.random_2 * 64 - 32)",
+        "dy": "self.age * (self.random_3 * 24 + 64)",
         "shapes": [
             {
                 "type": "triangle",
@@ -29,7 +29,7 @@
         ]
     },
     {
-        "name": "damage_number",
+        "name": "hit_enemy_number",
         "duration": 0.5,
         "dx": "self.age * (self.random_1 * 16 + 16) * (self.random_2 > 0.5 and 1 or -1)",
         "dy": "(self.age * (self.random_3 * 4 + 12) - 3) ^ 2 - 16",
@@ -39,9 +39,24 @@
                 "text": "self.amount or '0'",
                 "align": "center",
                 "scale": "self.age < 0.25 and 1 or (1 - (self.age - 0.25) / (self.duration - 0.25))",
-                "alpha": "self.age < 0.25 and 1 or (1 - (self.age - 0.25) / (self.duration - 0.25))",
                 "color": "gfx.COLOR_YELLOW",
                 "outline": "gfx.COLOR_BROWN"
+            }
+        ]
+    },
+    {
+        "name": "hit_player_number",
+        "duration": 0.5,
+        "dx": "self.age * (self.random_1 * 16 + 16) * (self.random_2 > 0.5 and 1 or -1)",
+        "dy": "(self.age * (self.random_3 * 4 + 12) - 3) ^ 2 - 16",
+        "shapes": [
+            {
+                "type": "text",
+                "text": "self.amount or '0'",
+                "align": "center",
+                "scale": "self.age < 0.25 and 1 or (1 - (self.age - 0.25) / (self.duration - 0.25))",
+                "color": "gfx.COLOR_RED",
+                "outline": "gfx.COLOR_DARK_PURPLE"
             }
         ]
     },
@@ -56,6 +71,48 @@
                 "align": "center",
                 "color": "(self.age % 0.15) > 0.075 and gfx.COLOR_YELLOW or gfx.COLOR_WHITE",
                 "outline": "(self.age % 0.15) > 0.075 and gfx.COLOR_BROWN or gfx.COLOR_DARK_GRAY"
+            }
+        ]
+    },
+    {
+        "name": "burst_ready",
+        "duration": 1,
+        "dy": "math.log(self.age) * (self.random_1 * 2 + 2) + 20",
+        "shapes": [
+            {
+                "type": "text",
+                "text": "'BURST READY!'",
+                "align": "center",
+                "color": "(self.age % 0.15) > 0.075 and gfx.COLOR_BLUE or gfx.COLOR_WHITE",
+                "outline": "(self.age % 0.15) > 0.075 and gfx.COLOR_DARK_BLUE or gfx.COLOR_INDIGO"
+            }
+        ]
+    },
+    {
+        "name": "player_projectile_fragment",
+        "duration": "self.random_1 * 0.25 + 0.25",
+        "dx": "self.age * (self.random_1 * 8 + 8) * (self.random_2 > 0.5 and 1 or -1)",
+        "dy": "(self.age * (self.random_3 * 2 + 4) - 3) ^ 2 - 12",
+        "shapes": [
+            {
+                "type": "triangle",
+                "rotation": "self.age + self.random_1",
+                "size": "(1 - self.age / self.duration) * (self.random_4 * 2 + 1)",
+                "color": "gfx.COLOR_YELLOW"
+            }
+        ]
+    },
+    {
+        "name": "enemy_projectile_fragment",
+        "duration": "self.random_1 * 0.25 + 0.25",
+        "dx": "self.age * (self.random_1 * 8 + 8) * (self.random_2 > 0.5 and 1 or -1)",
+        "dy": "(self.age * (self.random_3 * 4 + 8)^2 - 3)",
+        "shapes": [
+            {
+                "type": "triangle",
+                "rotation": "self.age + self.random_1",
+                "size": "(1 - self.age / self.duration) * (self.random_4 * 2 + 1)",
+                "color": "gfx.COLOR_RED"
             }
         ]
     }
