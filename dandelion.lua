@@ -325,6 +325,7 @@ local function draw_particle(particle)
             local rotation = compute_particle_expression(particle, shape.rotation or 0.25) * math.pi +
                 propagated_rotation
             local outline = compute_particle_expression(particle, shape.outline or 1)
+            local half_outline = math.floor(outline)
 
             local function rotated_corner(x, y)
                 local tx = x * math.cos(rotation) - y * math.sin(rotation)

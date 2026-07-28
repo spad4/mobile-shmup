@@ -14,7 +14,7 @@ local function spawn_enemy(x, y)
     return {
         x = x,
         y = y,
-        health = 12,
+        health = 5,
         r = 4,
         sprite = 2,
         color = gfx.COLOR_RED,
@@ -25,11 +25,22 @@ end
 
 local function new_wave()
     return {
-        spawn_enemy(64, 64),
-        spawn_enemy(80, 80),
-        spawn_enemy(96, 80),
-        spawn_enemy(112, 80),
-        spawn_enemy(128, 64)
+        -- spawn_enemy(16, 16+32),
+        -- spawn_enemy(32, 16+32),
+        -- spawn_enemy(48, 16+32),
+        -- spawn_enemy(64, 0+32),
+        -- spawn_enemy(80, 16+32),
+        -- spawn_enemy(96, 16+32),
+        -- spawn_enemy(112, 16+32),
+        -- spawn_enemy(128, 0),
+        -- spawn_enemy(16, 16),
+        -- spawn_enemy(32, 16),
+        -- spawn_enemy(48, 16),
+        -- spawn_enemy(64, 0),
+        -- spawn_enemy(80, 16),
+        -- spawn_enemy(96, 16),
+        -- spawn_enemy(112, 16),
+        -- spawn_enemy(128, 0)
     }
 end
 
@@ -39,12 +50,12 @@ function _init()
         max_health = 10,
         health = 10,
         energy = 0,
-        max_energy = 9,
+        max_energy = 1,
         x = usagi.GAME_W / 2 - PLAYER_SIZE / 2,
         y = usagi.GAME_H - 100,
         w = PLAYER_SIZE,
         h = PLAYER_SIZE,
-        r = PLAYER_SIZE / 2,
+        r = PLAYER_SIZE / 2 - 1,
         absorb_r = 16,
         hfw = PLAYER_SIZE / 2,
         hfh = PLAYER_SIZE / 2,
@@ -77,31 +88,19 @@ function _init()
         duration = 0,
         scale = 0
     }
+
+    -- enemy attack logic
+    Global_Movement_Pattern = function(dt)
+        return util.sign(math.sin(Elapsed)) * 16 * dt, 0
+    end
+    Next_Attack = 0
+    Attack_Delay = 5
 end
 
 local function decaying_slow_mo(time, scale)
     Slow_Mo.time = time
     Slow_Mo.duration = time
     Slow_Mo.scale = scale
-end
-
-local function player_shoot()
-    local new_projectile = {
-        x = Player.x,
-        y = Player.y,
-        w = 2,
-        h = 2,
-        r = 4,
-        damage = 3,
-        color = gfx.COLOR_YELLOW,
-        vx = 0,
-        vy = -256
-    }
-    new_projectile.draw = function()
-        gfx.circ_fill(new_projectile.x, new_projectile.y, new_projectile.w, new_projectile.color)
-    end
-
-    table.insert(Player_Projectiles, new_projectile)
 end
 
 local function enemy_shoot(enemy)
@@ -126,8 +125,16 @@ local function enemy_shoot(enemy)
 
     table.insert(Enemy_Projectiles, new_projectile)
 end
+
+local next_spawn = 0
+
 function _update(dt)
     Elapsed += dt
+
+    if Elapsed > next_spawn then
+        next_spawn = Elapsed + 2
+        table.insert(Enemies, spawn_enemy(math.random(24, usagi.GAME_W - 24), 32))
+    end
 
     -- decaying slow mo
     if Slow_Mo.time > 0 then
@@ -148,11 +155,15 @@ function _update(dt)
     Mouse.x, Mouse.y = input.mouse()
     Mouse.is_down = input.mouse_held(input.MOUSE_LEFT)
 
+    -- dandelion.test(64, 64)
     if input.mouse_pressed(input.MOUSE_LEFT) then
         Mouse.down_x, Mouse.down_y = Mouse.x, Mouse.y
         -- Start burst
         if not Burst_Active and Can_Burst and Elapsed - Mouse.last_press < BURST_WINDOW then
             Burst_Active = true
+
+            -- fx
+            dandelion.burst_diamond(Player.x, Player.y)
             decaying_slow_mo(0.5, 0)
         end
         Mouse.last_press = Elapsed
@@ -182,22 +193,36 @@ function _update(dt)
         -- if move_vec.y < -0.25 then
         -- end
     end
-    -- dandelion.engine_flame(Player.x, Player.y + Player.hfh)
+    if Burst_Active then
+        dandelion.burst_engine_flame(Player.x, Player.y + Player.hfh)
+    else
+        dandelion.engine_flame(Player.x, Player.y + Player.hfh)
+    end
 
     -- Player Shooting
     if not Room_Cleared and #Enemies > 0 then
-        local weapon = Burst_Active and Burst_Weapon or Weapon
-        if Elapsed > weapon.next_round then
-            weapon.next_round = Elapsed + weapon.round_rate
-            weapon.current_shot = 1
+        local current_weapon = Burst_Active and Burst_Weapon or Weapon
+        if Elapsed > current_weapon.next_round then
+            current_weapon.next_round = Elapsed + current_weapon.round_rate
+            current_weapon.current_shot = 1
         end
 
-        if weapon.current_shot ~= 0 and (weapon.current_shot == 1 or Elapsed > weapon.next_shot) then
-            player_shoot()
-            weapon.next_shot = Elapsed + weapon.fire_rate
-            weapon.current_shot += 1
-            if weapon.current_shot > weapon.round_size then
-                weapon.current_shot = 0
+        if current_weapon.current_shot ~= 0 and (current_weapon.current_shot == 1 or Elapsed > current_weapon.next_shot) then
+            -- fire projectile
+            local new_projectile = { x = Player.x, y = Player.y }
+            setmetatable(new_projectile, { __index = current_weapon.projectile })
+            table.insert(Player_Projectiles, new_projectile)
+
+            -- calculate next shot interval
+            current_weapon.next_shot = Elapsed + current_weapon.fire_rate
+            current_weapon.current_shot += 1
+            if current_weapon.current_shot > current_weapon.round_size then
+                current_weapon.current_shot = 0
+            end
+
+            -- fx
+            if Burst_Active then
+                effect.screen_shake(0.25, current_weapon.projectile.shake or 0.25)
             end
         end
     end
@@ -231,8 +256,13 @@ function _update(dt)
         end
     end
 
-    -- Enemy shooting
+    local global_enemy_dx, global_enemy_dy = Global_Movement_Pattern(dt)
+    -- Enemy loop
     for _, enemy in pairs(Enemies) do
+        -- MOVEMENT
+        enemy.x, enemy.y = enemy.x + global_enemy_dx, enemy.y + global_enemy_dy
+
+        -- SHOOTING
         local weapon = enemy.weapon
         if Elapsed > weapon.next_round then
             weapon.next_round = Elapsed + weapon.round_rate
@@ -254,11 +284,7 @@ function _update(dt)
         local projectile = Enemy_Projectiles[i]
         projectile.x += projectile.vx * dt
         projectile.y += projectile.vy * dt
-
-        if projectile.y < -16 then
-            table.remove(Enemy_Projectiles, i)
-        end
-
+        
         -- Near miss
         if not Burst_Active and not projectile.absorbed and util.circ_overlap(projectile, { x = Player.x, y = Player.y, r = Player.absorb_r }) then
             projectile.absorbed = Elapsed + 0.25
@@ -266,11 +292,11 @@ function _update(dt)
                 Player.energy += projectile.damage
                 if Player.energy >= Player.max_energy then
                     Player.energy = Player.max_energy
-                    dandelion.burst_ready(Player.x, Player.y)
+                    dandelion.burst_ready(util.clamp(Player.x, 32, usagi.GAME_W - 32), Player.y)
                 end
             end
         end
-
+        
         -- Hit player
         if util.circ_overlap(projectile, Player) and Elapsed > Player.invuln_until then
             Player.health = math.max(0, Player.health - projectile.damage)
@@ -280,7 +306,21 @@ function _update(dt)
             table.remove(Enemy_Projectiles, i)
             break
         end
+        
+        -- destroy nearby projectiles during the first half of burst
+        -- radius grows over time
+        local radius = 52 * (2 - Player.energy / Player.max_energy)^2
+        if Burst_Active and Player.energy > Player.max_energy / 2 and util.vec_dist(projectile, Player) < radius then
+            table.remove(Enemy_Projectiles, i)
+            dandelion.enemy_projectile_break(projectile.x, projectile.y)
+        end
+        
+        -- destroy projectiles that go off screen
+        if projectile.y < -16 then
+            table.remove(Enemy_Projectiles, i)
+        end
     end
+
     Can_Burst = Player.energy == Player.max_energy
 end
 
@@ -290,16 +330,19 @@ function _draw(dt)
 
     -- player
     dandelion.DrawGroups("engine_flame")
-    gfx.spr_ex(1, Player.x - Player.r, Player.y - Player.r, false, false, 0, gfx.COLOR_TRUE_WHITE, 1)
+    gfx.spr_ex(1, Player.x - Player.hfw, Player.y - Player.hfh, false, false, 0, gfx.COLOR_TRUE_WHITE, 1)
     if Elapsed < Player.invuln_until then
-        gfx.spr_ex(1, Player.x - Player.r, Player.y - Player.r, false, false, 0, gfx.COLOR_RED,
+        gfx.spr_ex(1, Player.x - Player.hfw, Player.y - Player.hfh, false, false, 0, gfx.COLOR_RED,
             4 * (Player.invuln_until - Elapsed))
     end
 
     -- Player projectiles
     for i = #Player_Projectiles, 1, -1 do
         local projectile = Player_Projectiles[i]
-        projectile.draw()
+        if projectile.type == PROJECTILE_TYPES.BALL then
+            local color = (projectile.burst and Burst_Active and Elapsed % 0.15 > 0.075) and gfx.COLOR_BLUE or projectile.color
+            gfx.circ_fill(projectile.x, projectile.y, projectile.r, color)
+        end
     end
 
     -- Enemies

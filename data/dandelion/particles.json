@@ -10,7 +10,22 @@
                 "type": "triangle",
                 "size": "(1 - self.age / self.duration) * (self.random_4 * 2 + 2)",
                 "rotation": "self.age",
-                "color": "self.age > 0.4 and gfx.COLOR_DARK_PURPLE or (self.age > 0.25 and gfx.COLOR_RED or (self.age > 0.1 and gfx.COLOR_ORANGE or gfx.COLOR_YELLOW))"
+                "color": "self.age > 0.4 and gfx.COLOR_DARK_PURPLE or (self.age > 0.2 and gfx.COLOR_RED or (self.age > 0.1 and gfx.COLOR_ORANGE or gfx.COLOR_YELLOW))"
+            }
+        ]
+    },
+    {
+        "name": "burst_engine_flame",
+        "group": "engine_flame",
+        "duration": "self.random_1 * 0.25 + 0.25",
+        "dx": "self.age * (self.random_2 * 64 - 32)",
+        "dy": "self.age * (self.random_3 * 24 + 64)",
+        "shapes": [
+            {
+                "type": "triangle",
+                "size": "(1 - self.age / self.duration) * (self.random_4 * 3 + 3)",
+                "rotation": "self.age",
+                "color": "self.age > 0.4 and gfx.COLOR_DARK_PURPLE or (self.age > 0.2 and gfx.COLOR_BLUE or (self.age > 0.1 and gfx.COLOR_PEACH or gfx.COLOR_WHITE))"
             }
         ]
     },
@@ -113,6 +128,20 @@
                 "rotation": "self.age + self.random_1",
                 "size": "(1 - self.age / self.duration) * (self.random_4 * 2 + 1)",
                 "color": "gfx.COLOR_RED"
+            }
+        ]
+    },
+    {
+        "name": "burst_diamond",
+        "duration": 0.6,
+        "shapes": [
+            {
+                "type": "rectangle",
+                "width": "32 + (self.age^2) * 512",
+                "height": "32 + (self.age^2) * 512",
+                "rotation": 0.25,
+                "outline": "16*(1 - self.age / self.duration)",
+                "color": "(self.age % 0.15) > 0.075 and gfx.COLOR_BLUE or gfx.COLOR_WHITE"
             }
         ]
     }
